@@ -1,0 +1,584 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  BookOpen, 
+  Sparkles, 
+  User, 
+  Map, 
+  Trophy, 
+  ArrowRight, 
+  ArrowLeft, 
+  RotateCcw, 
+  Copy, 
+  Printer, 
+  Settings, 
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Wand2
+} from 'lucide-react';
+
+const App = () => {
+  // --- App State ---
+  const [step, setStep] = useState(0); // 0 is Level Selection, 1+ are story steps
+  const [level, setLevel] = useState(null);
+  const [userName, setUserName] = useState('');
+  const [isTeacherPanelOpen, setIsTeacherPanelOpen] = useState(false);
+  const [powerUps, setPowerUps] = useState({ dialogue: 0, description: 0, verbs: 0, feelings: 0 });
+  const [choices, setChoices] = useState({
+    theme: '',
+    genre: '',
+    beginning: '',
+    mainChar: { name: '', trait: '', goal: '' },
+    sidekick: { name: '', trait: '', skill: '' },
+    setting: '',
+    mission: '',
+    problem: '',
+    twist: '',
+    obstacles: [],
+    solution: '',
+    ending: ''
+  });
+
+  // --- Constants & Data ---
+  const LEVELS = [
+    { id: 1, name: 'Explorer (Level 1)', desc: 'Short story with lots of sentence starters and word banks.', range: '120-180 words' },
+    { id: 2, name: 'Adventurer (Level 2)', desc: 'Medium length with guided paragraph frames.', range: '180-260 words' },
+    { id: 3, name: 'Legend (Level 3)', desc: 'Longer story with advanced writing craft prompts.', range: '220-320 words' }
+  ];
+
+  const OPTIONS = {
+    themes: ['Space Adventure', 'Jungle Mystery', 'Magic School', 'Undersea Kingdom', 'Robot City', 'Dinosaur Valley', 'Talking Animals', 'Candy Land'],
+    genres: ['Fantasy', 'Sci-Fi', 'Mystery', 'Action', 'Comedy', 'Fable', 'Legend', 'Modern Day'],
+    beginnings: [
+      "The sun had just started to rise when...",
+      "Nobody expected that Tuesday would be the day...",
+      "Deep inside a hidden box, something began to glow...",
+      "It was a quiet morning until a loud 'POP' echoed through the air...",
+      "The map had been in the family for years, but today..."
+    ],
+    chars: [
+      { name: 'Pip', trait: 'brave', goal: 'find the lost key' },
+      { name: 'Luna', trait: 'curious', goal: 'solve the riddle' },
+      { name: 'Jax', trait: 'funny', goal: 'win the big race' },
+      { name: 'Zoe', trait: 'clever', goal: 'save the park' },
+      { name: 'Oli', trait: 'clumsy but kind', goal: 'make a new friend' }
+    ],
+    sidekicks: [
+      { name: 'Barnaby', trait: 'loyal', skill: 'talking to birds' },
+      { name: 'Spark', trait: 'energetic', skill: 'glowing in the dark' },
+      { name: 'Misty', trait: 'quiet', skill: 'super hearing' },
+      { name: 'Gears', trait: 'logical', skill: 'fixing anything' },
+      { name: 'Whiskers', trait: 'grumpy', skill: 'finding snacks' }
+    ],
+    settings: ['A floating island', 'A giant library', 'The bottom of a volcano', 'A village made of Legos', 'A cloud castle', 'The world’s biggest playground'],
+    missions: ['Rescue a trapped dragon', 'Find the Golden Cupcake', 'Stop the tickle-monster', 'Deliver a secret message', 'Fix the broken weather machine'],
+    problems: ['The bridge is guarded by a grumpy troll', 'Everything started turning into marshmallows', 'The gravity stopped working', 'They lost their map in a gust of wind', 'A heavy fog rolled in', 'The batteries ran out'],
+    twists: ['The villain was actually just lonely', 'The whole thing was a dream (wait, no it wasn’t!)', 'The sidekick had the key the whole time', 'The weather started raining lemonade', 'They were actually tiny in a giant’s kitchen', 'The map was upside down'],
+    obstacles: ['A giant spider web', 'A riddle-loving gatekeeper', 'A slippery ice path', 'A distracting parade', 'A sudden heavy rain', 'A dark tunnel', 'A missing bridge', 'A very loud snoring giant'],
+    solutions: ['Using teamwork to lift the heavy rock', 'Distracting the guard with a funny dance', 'Using a secret gadget from the sidekick', 'Solving the riddle with a clever answer', 'Making a deal with the local creatures', 'Finding a hidden path'],
+    endings: ['A funny ending with a big laugh', 'A surprising ending nobody saw coming', 'A thoughtful ending with a lesson learned', 'A cliffhanger... to be continued!', 'A happily ever after celebration', 'A sleepy ending after a long day']
+  };
+
+  const STEPS = [
+    { title: 'The Theme', key: 'theme', icon: <Sparkles className="w-5 h-5" />, options: OPTIONS.themes, prompt: "Hi! I'm Story Spark! What kind of world should we visit today?" },
+    { title: 'The Genre', key: 'genre', icon: <BookOpen className="w-5 h-5" />, options: OPTIONS.genres, prompt: "Cool choice! Now, what style of story is this?" },
+    { title: 'The Hero', key: 'mainChar', icon: <User className="w-5 h-5" />, type: 'char', prompt: "Every story needs a hero! Who is yours?" },
+    { title: 'The Sidekick', key: 'sidekick', icon: <User className="w-5 h-5" />, type: 'sidekick', prompt: "Heroes shouldn't go alone! Who is coming along?" },
+    { title: 'The Beginning', key: 'beginning', icon: <ArrowRight className="w-5 h-5" />, options: OPTIONS.beginnings, prompt: "Let's start the engine! Pick a way to begin." },
+    { title: 'The Place', key: 'setting', icon: <Map className="w-5 h-5" />, options: OPTIONS.settings, prompt: "Where is this all happening?" },
+    { title: 'The Mission', key: 'mission', icon: <Trophy className="w-5 h-5" />, options: OPTIONS.missions, prompt: "What is the big goal?" },
+    { title: 'The Trouble', key: 'problem', icon: <Settings className="w-5 h-5" />, options: OPTIONS.problems, prompt: "Oh no! What goes wrong?" },
+    { title: 'The Obstacles', key: 'obstacles', icon: <Settings className="w-5 h-5" />, type: 'multi', options: OPTIONS.obstacles, prompt: "Pick two things that get in their way!" },
+    { title: 'The Twist', key: 'twist', icon: <Sparkles className="w-5 h-5" />, options: OPTIONS.twists, prompt: "Wait, what?! Let's add a surprise." },
+    { title: 'The Solution', key: 'solution', icon: <Wand2 className="w-5 h-5" />, options: OPTIONS.solutions, prompt: "How do they fix everything?" },
+    { title: 'The Ending', key: 'ending', icon: <CheckCircle2 className="w-5 h-5" />, options: OPTIONS.endings, prompt: "How does it all wrap up?" }
+  ];
+
+  // --- Logic ---
+  const handleChoice = (key, value) => {
+    setChoices(prev => ({ ...prev, [key]: value }));
+  };
+
+  const nextStep = () => {
+    if (step < STEPS.length) setStep(step + 1);
+  };
+
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
+  const restart = () => {
+    setStep(0);
+    setLevel(null);
+    setChoices({
+      theme: '', genre: '', beginning: '',
+      mainChar: { name: '', trait: '', goal: '' },
+      sidekick: { name: '', trait: '', skill: '' },
+      setting: '', mission: '', problem: '', twist: '',
+      obstacles: [], solution: '', ending: ''
+    });
+    setPowerUps({ dialogue: 0, description: 0, verbs: 0, feelings: 0 });
+  };
+
+  const surpriseMe = () => {
+    const currentStepConfig = STEPS[step - 1];
+    if (currentStepConfig.type === 'char') {
+      const rand = OPTIONS.chars[Math.floor(Math.random() * OPTIONS.chars.length)];
+      handleChoice('mainChar', rand);
+    } else if (currentStepConfig.type === 'sidekick') {
+      const rand = OPTIONS.sidekick[Math.floor(Math.random() * OPTIONS.sidekicks.length)];
+      handleChoice('sidekick', rand);
+    } else if (currentStepConfig.type === 'multi') {
+      const shuffled = [...OPTIONS.obstacles].sort(() => 0.5 - Math.random());
+      handleChoice('obstacles', shuffled.slice(0, 2));
+    } else {
+      const rand = currentStepConfig.options[Math.floor(Math.random() * currentStepConfig.options.length)];
+      handleChoice(currentStepConfig.key, rand);
+    }
+  };
+
+  const copyStory = () => {
+    const text = document.getElementById('final-story-text')?.innerText || '';
+    const tempInput = document.createElement('textarea');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+  };
+
+  const getStoryText = useMemo(() => {
+    const { theme, genre, beginning, mainChar, sidekick, setting, mission, problem, twist, obstacles, solution, ending } = choices;
+    
+    let story = "";
+    if (beginning) story += `${beginning} `;
+    
+    if (mainChar.name && theme) {
+      const levelText = level === 1 ? "was a small kid" : level === 2 ? `was a ${mainChar.trait} hero` : `was a ${mainChar.trait} adventurer who lived for ${theme} stories`;
+      story += `${mainChar.name}, who ${levelText}, looked out at ${setting || 'their surroundings'}. `;
+    }
+
+    if (sidekick.name) {
+      story += `Luckily, ${sidekick.name} was there. ${sidekick.name} was ${sidekick.trait} and could ${sidekick.skill}. `;
+    }
+
+    if (mission) {
+      story += `Their big mission was to ${mission}. They knew it wouldn't be easy in this ${genre} world. `;
+    }
+
+    if (problem) {
+      story += `Suddenly, trouble struck! ${problem}. `;
+    }
+
+    if (obstacles.length > 0) {
+      story += `To get past it, they had to face ${obstacles[0]} and then ${obstacles[1]}. It was exhausting! `;
+    }
+
+    if (twist) {
+      story += `Just when they thought they knew what was happening, ${twist}. `;
+    }
+
+    if (solution) {
+      story += `In the end, they saved the day by ${solution}. `;
+    }
+
+    if (ending) {
+      story += `It was truly ${ending}. The adventure was over... for now!`;
+    }
+
+    return story;
+  }, [choices, level]);
+
+  // --- Components ---
+  const ProgressMap = () => (
+    <div className="bg-white p-4 rounded-xl shadow-md border border-slate-200 mb-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <Map className="w-4 h-4 text-blue-600" /> Story Progress
+        </h3>
+        <span className="text-xs font-bold text-slate-400">Chapter {step} of {STEPS.length}</span>
+      </div>
+      <div className="flex gap-1.5">
+        {STEPS.map((s, i) => (
+          <div 
+            key={i} 
+            className={`h-2.5 flex-1 rounded-full transition-all duration-500 ${i + 1 < step ? 'bg-blue-600' : i + 1 === step ? 'bg-amber-400 ring-2 ring-amber-100' : 'bg-slate-100 border border-slate-200'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  const PowerUpBox = () => (
+    <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl mb-4 border border-slate-800">
+      <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-blue-400">
+        <Trophy className="w-4 h-4" /> Story Power-Ups
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        {Object.entries(powerUps).map(([key, val]) => (
+          <button 
+            key={key} 
+            onClick={() => setPowerUps(prev => ({ ...prev, [key]: prev[key] + 1 }))}
+            className="flex items-center justify-between bg-slate-800 hover:bg-slate-700 p-2.5 rounded-xl text-xs transition-all border border-slate-700 active:scale-95"
+          >
+            <span className="capitalize font-bold text-slate-300">{key}</span>
+            <span className="bg-blue-600 text-white px-2 py-0.5 rounded-md font-black">+{val}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const TeacherPanel = () => (
+    <div className="border-t border-slate-200 mt-8 pt-4">
+      <button 
+        onClick={() => setIsTeacherPanelOpen(!isTeacherPanelOpen)}
+        className="flex items-center justify-between w-full p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-colors shadow-sm"
+      >
+        <span className="font-bold text-slate-800 flex items-center gap-2">
+          <Settings className="w-4 h-4 text-blue-600" /> Teacher Toolbox
+        </span>
+        {isTeacherPanelOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      
+      {isTeacherPanelOpen && (
+        <div className="p-5 bg-white border-x border-b border-slate-200 rounded-b-2xl space-y-4 text-sm text-slate-600 shadow-sm">
+          <div>
+            <h4 className="font-black text-slate-800 mb-1 uppercase text-xs tracking-wider">Learning Goals</h4>
+            <p>Students build narrative structure while focusing on character goals and vocabulary precision.</p>
+          </div>
+          <div>
+            <h4 className="font-black text-slate-800 mb-1 uppercase text-xs tracking-wider">Success Checklist</h4>
+            <ul className="space-y-1">
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Clear setting and atmosphere</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Logical flow from problem to solution</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Inclusion of at least one surprise twist</li>
+            </ul>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <button className="p-3 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 hover:bg-blue-100 font-bold transition-colors text-left">💡 Suggest: "Add Dialogue"</button>
+            <button className="p-3 bg-slate-50 text-slate-800 rounded-xl border border-slate-200 hover:bg-slate-100 font-bold transition-colors text-left">✍️ Suggest: "Stronger Verbs"</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // --- Render Initial Screen ---
+  if (step === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+        <div className="max-w-2xl w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200">
+          <div className="bg-slate-900 p-12 text-center text-white relative">
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+               <Sparkles className="w-64 h-64 absolute -top-10 -left-10" />
+            </div>
+            <div className="inline-block p-5 bg-blue-600 rounded-3xl mb-6 shadow-lg shadow-blue-500/20">
+              <BookOpen className="w-14 h-14" />
+            </div>
+            <h1 className="text-4xl font-black mb-2 tracking-tight uppercase">Story Builder</h1>
+            <p className="text-slate-400 text-lg font-medium">Create your own epic legend!</p>
+          </div>
+          <div className="p-10">
+            <div className="mb-8">
+              <label className="block text-slate-800 font-black text-sm uppercase tracking-widest mb-3">Writer Nickname</label>
+              <input 
+                type="text" 
+                placeholder="Enter your hero name..."
+                className="w-full p-5 rounded-2xl border-2 border-slate-100 focus:border-blue-500 focus:ring-0 text-lg transition-all bg-slate-50 font-bold"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+              />
+            </div>
+            <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Select Experience</h2>
+            <div className="grid gap-4">
+              {LEVELS.map((l) => (
+                <button 
+                  key={l.id}
+                  onClick={() => { setLevel(l.id); setStep(1); }}
+                  className="flex items-center justify-between p-6 rounded-[1.5rem] border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-50/50 text-left transition-all group"
+                >
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 group-hover:text-blue-600">{l.name}</h3>
+                    <p className="text-slate-500 text-sm font-medium">{l.desc}</p>
+                    <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black mt-3 uppercase tracking-tighter">{l.range}</span>
+                  </div>
+                  <div className="bg-slate-100 group-hover:bg-blue-600 group-hover:text-white p-4 rounded-2xl transition-all shadow-sm">
+                    <ArrowRight className="w-6 h-6" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentStepConfig = STEPS[step - 1];
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-10 font-sans">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-10">
+        
+        {/* Left Side: Builder */}
+        <div className="flex-1 space-y-8">
+          {/* Mascot Header */}
+          <div className="bg-slate-900 rounded-[2rem] p-8 shadow-xl border border-slate-800 flex items-center gap-8 relative overflow-hidden group">
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl transition-all group-hover:bg-blue-600/20" />
+            <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center text-5xl shadow-2xl shrink-0 ring-4 ring-slate-800">
+              ⚡
+            </div>
+            <div className="relative z-10">
+              <p className="text-blue-400 font-black uppercase text-xs tracking-widest mb-2 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Story Spark says
+              </p>
+              <h2 className="text-2xl font-black text-white leading-tight">
+                "{currentStepConfig.prompt}"
+              </h2>
+            </div>
+          </div>
+
+          <ProgressMap />
+
+          {/* Choice Area */}
+          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-slate-50 px-8 py-5 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-black text-slate-900 flex items-center gap-3 uppercase text-sm tracking-widest">
+                <span className="p-2 bg-blue-600 text-white rounded-lg shadow-md shadow-blue-200">{currentStepConfig.icon}</span> 
+                {currentStepConfig.title}
+              </h3>
+              <button 
+                onClick={surpriseMe}
+                className="text-xs font-black bg-white px-4 py-2 rounded-xl border border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all flex items-center gap-2 shadow-sm uppercase tracking-wider"
+              >
+                <Wand2 className="w-3.5 h-3.5" /> Randomize
+              </button>
+            </div>
+
+            <div className="p-8">
+              {currentStepConfig.type === 'char' || currentStepConfig.type === 'sidekick' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {/* Pre-sets */}
+                   {(currentStepConfig.type === 'char' ? OPTIONS.chars : OPTIONS.sidekicks).map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleChoice(currentStepConfig.key, item)}
+                      className={`p-6 rounded-2xl border-2 text-left transition-all ${
+                        choices[currentStepConfig.key].name === item.name 
+                        ? 'border-blue-600 bg-blue-50 ring-4 ring-blue-50' 
+                        : 'border-slate-100 bg-slate-50/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="font-black text-slate-900 text-lg">{item.name}</div>
+                      <div className="text-xs text-blue-600 font-bold uppercase tracking-wider mt-1">
+                        {item.trait} • {item.goal || item.skill}
+                      </div>
+                    </button>
+                  ))}
+                  {/* Custom */}
+                  <div className="col-span-full mt-6 p-6 bg-slate-900 rounded-3xl border border-slate-800">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4">Original Hero Creation</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input 
+                        type="text" placeholder="Character Name" 
+                        className="p-3 text-sm rounded-xl border-none bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500"
+                        value={choices[currentStepConfig.key].name}
+                        onChange={(e) => handleChoice(currentStepConfig.key, {...choices[currentStepConfig.key], name: e.target.value})}
+                      />
+                      <input 
+                        type="text" placeholder="One Trait" 
+                        className="p-3 text-sm rounded-xl border-none bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500"
+                        value={choices[currentStepConfig.key].trait}
+                        onChange={(e) => handleChoice(currentStepConfig.key, {...choices[currentStepConfig.key], trait: e.target.value})}
+                      />
+                      <input 
+                        type="text" placeholder={currentStepConfig.type === 'char' ? 'Big Goal' : 'Unique Skill'} 
+                        className="p-3 text-sm rounded-xl border-none bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500"
+                        value={currentStepConfig.type === 'char' ? choices.mainChar.goal : choices.sidekick.skill}
+                        onChange={(e) => handleChoice(currentStepConfig.key, {
+                          ...choices[currentStepConfig.key], 
+                          [currentStepConfig.type === 'char' ? 'goal' : 'skill']: e.target.value
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : currentStepConfig.type === 'multi' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {currentStepConfig.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const current = choices.obstacles;
+                        if (current.includes(opt)) {
+                          handleChoice('obstacles', current.filter(o => o !== opt));
+                        } else if (current.length < 2) {
+                          handleChoice('obstacles', [...current, opt]);
+                        }
+                      }}
+                      className={`p-5 rounded-2xl border-2 text-xs text-center transition-all flex flex-col items-center justify-center gap-2 ${
+                        choices.obstacles.includes(opt) 
+                        ? 'border-blue-600 bg-blue-50 ring-4 ring-blue-50 font-black text-blue-800' 
+                        : 'border-slate-100 bg-slate-50/50 hover:border-slate-300 font-bold text-slate-600'
+                      }`}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${choices.obstacles.includes(opt) ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {currentStepConfig.options.map((opt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleChoice(currentStepConfig.key, opt)}
+                        className={`p-6 rounded-2xl border-2 text-left text-sm transition-all ${
+                          choices[currentStepConfig.key] === opt 
+                          ? 'border-blue-600 bg-blue-50 ring-4 ring-blue-50 font-black text-blue-900' 
+                          : 'border-slate-100 bg-slate-50/50 hover:border-slate-300 font-bold text-slate-600'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pt-6 border-t border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Writer's Notebook (Write your own)</p>
+                    <textarea 
+                      className="w-full p-5 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-0 text-sm bg-slate-50 font-medium placeholder-slate-300"
+                      placeholder="Let your imagination run wild..."
+                      rows="3"
+                      value={choices[currentStepConfig.key]}
+                      onChange={(e) => handleChoice(currentStepConfig.key, e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-900 p-8 flex justify-between items-center">
+              <button 
+                onClick={prevStep}
+                disabled={step === 1}
+                className="flex items-center gap-3 font-black text-slate-400 disabled:opacity-30 hover:text-white transition-colors uppercase tracking-widest text-xs"
+              >
+                <ArrowLeft className="w-5 h-5" /> Back
+              </button>
+              <button 
+                onClick={nextStep}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-[1.25rem] font-black flex items-center gap-3 shadow-xl shadow-blue-900/40 transition-all active:scale-95 uppercase tracking-widest text-sm"
+              >
+                {step === STEPS.length ? 'Build Final Legend' : 'Next Stage'} <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          <TeacherPanel />
+        </div>
+
+        {/* Right Side: Preview & Progress */}
+        <div className="w-full lg:w-[400px] space-y-6">
+          <PowerUpBox />
+
+          <div className="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden sticky top-8">
+            <div className="bg-slate-900 p-6 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="font-black text-white flex items-center gap-3 uppercase text-xs tracking-[0.2em]">
+                <BookOpen className="w-4 h-4 text-blue-500" /> Story Draft
+              </h3>
+              <div className="flex gap-2">
+                <button onClick={copyStory} className="p-2 bg-slate-800 rounded-xl text-slate-300 hover:text-white hover:bg-blue-600 transition-all" title="Copy to Clipboard">
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button onClick={() => window.print()} className="p-2 bg-slate-800 rounded-xl text-slate-300 hover:text-white hover:bg-blue-600 transition-all" title="Print/PDF">
+                  <Printer className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-8 max-h-[65vh] overflow-y-auto scrollbar-hide">
+              {step === STEPS.length + 1 ? (
+                <div id="final-story-text" className="space-y-8">
+                  <div className="text-center pb-8 border-b border-slate-100">
+                    <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-md shadow-blue-100">Final Legend</span>
+                    <h1 className="text-3xl font-black text-slate-900 leading-tight">The Chronicles of {choices.mainChar.name || 'the Brave'}</h1>
+                    <p className="text-slate-400 text-sm font-bold mt-2 uppercase tracking-widest">Story by {userName || 'a young author'}</p>
+                  </div>
+                  <div className="text-xl leading-[1.8] text-slate-700 font-medium space-y-6">
+                    {getStoryText.split('. ').map((sentence, i) => (
+                      <p key={i}>{sentence}.</p>
+                    ))}
+                  </div>
+                  <div className="pt-10 flex flex-col gap-4 print:hidden">
+                    <button 
+                      onClick={restart}
+                      className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-blue-600 transition-all shadow-xl"
+                    >
+                      <RotateCcw className="w-5 h-5" /> Start New Adventure
+                    </button>
+                    <button 
+                      onClick={() => setStep(1)}
+                      className="w-full py-5 bg-blue-50 text-blue-700 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-blue-100 transition-all border border-blue-200"
+                    >
+                      <Settings className="w-5 h-5" /> Change My Path
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {getStoryText ? (
+                    <>
+                      <div className="text-lg leading-[1.7] text-slate-600 font-medium italic">
+                        {getStoryText} <span className="inline-block w-4 h-1 bg-blue-600 animate-pulse ml-1 rounded-full"></span>
+                      </div>
+                      <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-inner">
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">✨ Spark Advice</p>
+                        <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                          {level === 3 
+                            ? "Powerful start! Try describing how the air smells in this world." 
+                            : "Excellent! Your story is getting exciting. Ready for the next stage?"}
+                        </p>
+                        <button className="mt-5 w-full text-xs font-black bg-blue-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20">
+                          <Wand2 className="w-4 h-4" /> Vocabulary Boost
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-20">
+                      <div className="text-6xl mb-6 grayscale opacity-20">📖</div>
+                      <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Awaiting Your Vision...</p>
+                      <p className="text-slate-300 text-sm mt-2">Pick a theme to start the ink flowing.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <span>Progress: {Math.round((step / STEPS.length) * 100)}%</span>
+              <span className="text-blue-600 font-black">Words: {getStoryText ? getStoryText.split(' ').length : 0}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { 
+          font-family: 'Plus Jakarta Sans', sans-serif; 
+          background-color: #f8fafc;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @media print {
+          body { background: white; padding: 0; }
+          .print\:hidden { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
